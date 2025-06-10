@@ -13,8 +13,9 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 
 // Initialize Firebase Admin SDK
+const serviceAccount = require("/etc/secrets/firebase-service-account.json");
 admin.initializeApp({
-  credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT))
+  credential: admin.credential.cert(serviceAccount)
 });
 
 const db = admin.firestore();
