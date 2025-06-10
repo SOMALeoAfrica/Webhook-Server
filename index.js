@@ -24,7 +24,6 @@ app.get("/", (req, res) => {
   res.send("✅ SOMA Webhook Server is live");
 });
 
-// Paystack Webhook endpoint using raw-body for signature verification
 app.post("/paystack/webhook", async (req, res) => {
   try {
     const rawBody = await getRawBody(req);
@@ -35,7 +34,6 @@ app.post("/paystack/webhook", async (req, res) => {
       .digest("hex");
 
     const signature = req.headers["x-paystack-signature"];
-
     if (hash !== signature) {
       console.error("❌ Invalid signature. Rejecting request.");
       return res.status(400).send("Invalid signature");
@@ -48,11 +46,19 @@ app.post("/paystack/webhook", async (req, res) => {
       const data = event.data;
       const { userId, planId, planName } = data.metadata;
       const paidAt = new Date(data.paid_at);
-      
-      // Set plan duration (adjust as needed)
-      const durationInMonths = planId.includes('annual') ? 12 : 1;
+
+      // Set plan duration (daily, monthly, annual)
+      let durationInDays = 30; // default
+      if (planId.includes('daily')) {
+        durationInDays = 1;
+      } else if (planId.includes('monthly')) {
+        durationInDays = 30;
+      } else if (planId.includes('annual')) {
+        durationInDays = 365;
+      }
+
       const expiresAt = new Date(paidAt);
-      expiresAt.setMonth(expiresAt.getMonth() + durationInMonths);
+      expiresAt.setDate(expiresAt.getDate() + durationInDays);
 
       // Write to Firestore: /users/{userId}
       await db.collection('users').doc(userId).set({
@@ -91,11 +97,8 @@ app.post("/paystack/webhook", async (req, res) => {
         role: data.metadata.role || 'teacher'
       });
 
-      console.log(`✅ Subscription activated for ${userId}`);
+      console.log(`✅ Subscription activated for ${userId} with plan ${planId}`);
     }
-
-    // 🔥 Continue processing event (e.g., Firestore logic here)
-    // You can add your Firestore logic below as needed
 
     return res.sendStatus(200);
   } catch (error) {
@@ -104,7 +107,6 @@ app.post("/paystack/webhook", async (req, res) => {
   }
 });
 
-// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
